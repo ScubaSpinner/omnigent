@@ -38,6 +38,16 @@ from tests.e2e.conftest import (
 )
 from tests.e2e.helpers import final_assistant_text
 
+pytestmark = pytest.mark.skipif(
+    "config.getoption('--llm-api-key') is None",
+    reason=(
+        "Sub-agent orchestration tests require a real LLM: "
+        "parent and child agents share the same model key (gpt-5.4), "
+        "so mock LLM response queues cannot be reliably ordered "
+        "across the nondeterministic parent/child request interleaving."
+    ),
+)
+
 _FIXTURES_DIR = Path(__file__).resolve().parents[1] / "_fixtures" / "agents"
 _SUB_AGENT_FIXTURE = _FIXTURES_DIR / "sub-agent-test"
 

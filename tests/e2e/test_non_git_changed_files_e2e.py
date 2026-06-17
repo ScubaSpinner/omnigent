@@ -55,8 +55,10 @@ import pytest
 
 from tests.e2e.conftest import (
     build_agent_bundle,
+    configure_mock_llm,
     find_free_port,
     poll_session_until_terminal,
+    reset_mock_llm,
     send_user_message_to_session,
 )
 from tests.e2e.helpers import HEALTH_TIMEOUT_S, POLL_INTERVAL_S
@@ -130,6 +132,8 @@ def non_git_runner_id() -> str:
 def non_git_server(
     request: pytest.FixtureRequest,
     llm_api_key: str,
+    using_mock_llm: bool,
+    mock_llm_server_url: str,
     databricks_workspace_host: str | None,
     tmp_path_factory: pytest.TempPathFactory,
     non_git_workspace: Path,
@@ -144,6 +148,8 @@ def non_git_server(
     directory and returns an :class:`AgentEditFilesystemRegistry`.
 
     :param llm_api_key: The ``--llm-api-key`` option value.
+    :param using_mock_llm: Whether running against the mock LLM.
+    :param mock_llm_server_url: Mock LLM server URL.
     :param databricks_workspace_host: Workspace host, or ``None``
         when ``--profile`` is not set.
     :param tmp_path_factory: pytest temp path factory.
@@ -164,7 +170,9 @@ def non_git_server(
         "OMNIGENT_SKIP_ONBOARD": "1",
         "OMNIGENT_NO_UPDATE_CHECK": "1",
     }
-    if databricks_workspace_host is not None:
+    if using_mock_llm and mock_llm_server_url is not None:
+        env["OPENAI_BASE_URL"] = f"{mock_llm_server_url}/v1"
+    elif databricks_workspace_host is not None:
         env["OPENAI_BASE_URL"] = f"{databricks_workspace_host}/serving-endpoints"
         env["DATABRICKS_CONFIG_PROFILE"] = request.config.getoption("--profile")
 
@@ -359,6 +367,8 @@ def test_non_git_create_file(
     non_git_runner_id: str,
     non_git_workspace: Path,
     databricks_workspace_host: str | None,
+    using_mock_llm: bool,
+    mock_llm_server_url: str,
 ) -> None:
     """Agent-created file appears in the changes listing with status ``"created"``.
 
@@ -380,9 +390,30 @@ def test_non_git_create_file(
     :param non_git_runner_id: Runner id registered by the fixture.
     :param non_git_workspace: Non-git temp workspace directory (= server CWD).
     :param databricks_workspace_host: Workspace host URL for model rewriting.
+    :param using_mock_llm: Whether running against the mock LLM.
+    :param mock_llm_server_url: Mock LLM server URL.
     """
     filename = f"create_{uuid.uuid4().hex[:8]}.txt"
     content = "created by e2e test"
+
+    if using_mock_llm:
+        reset_mock_llm(mock_llm_server_url)
+        configure_mock_llm(
+            mock_llm_server_url,
+            [
+                {
+                    "tool_calls": [
+                        {
+                            "call_id": "call_write_1",
+                            "name": "sys_os_write",
+                            "arguments": json.dumps({"path": filename, "content": content}),
+                        },
+                    ],
+                },
+                {"text": "File created successfully."},
+            ],
+            key="default",
+        )
 
     session_id = _create_session(
         non_git_client,
@@ -437,6 +468,8 @@ def test_non_git_edit_file(
     non_git_runner_id: str,
     non_git_workspace: Path,
     databricks_workspace_host: str | None,
+    using_mock_llm: bool,
+    mock_llm_server_url: str,
 ) -> None:
     """Agent overwrite of a pre-existing file appears with status ``"modified"``.
 
@@ -455,10 +488,33 @@ def test_non_git_edit_file(
     :param non_git_runner_id: Runner id registered by the fixture.
     :param non_git_workspace: Non-git temp workspace directory.
     :param databricks_workspace_host: Workspace host URL for model rewriting.
+    :param using_mock_llm: Whether running against the mock LLM.
+    :param mock_llm_server_url: Mock LLM server URL.
     """
     filename = f"edit_{uuid.uuid4().hex[:8]}.txt"
     original_content = "original content written before session"
     updated_content = "overwritten by e2e edit test"
+
+    if using_mock_llm:
+        reset_mock_llm(mock_llm_server_url)
+        configure_mock_llm(
+            mock_llm_server_url,
+            [
+                {
+                    "tool_calls": [
+                        {
+                            "call_id": "call_write_2",
+                            "name": "sys_os_write",
+                            "arguments": json.dumps(
+                                {"path": filename, "content": updated_content}
+                            ),
+                        },
+                    ],
+                },
+                {"text": "File overwritten successfully."},
+            ],
+            key="default",
+        )
 
     # Create the session to learn its id before seeding the file.
     session_id = _create_session(
