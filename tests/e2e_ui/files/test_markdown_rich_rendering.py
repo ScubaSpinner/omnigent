@@ -123,8 +123,9 @@ def test_markdown_renders_rich_constructs_and_source_toggle(
         page.get_by_role("button", name=f"Close {_MARKDOWN_FILE_PATH}", exact=True).first
     ).to_be_visible()
 
-    # Markdown defaults to the rich-text editor; each construct renders as its
-    # semantic HTML element.
+    # Markdown opens in the read-only preview; switch into the rich-text editor,
+    # where each construct renders as its semantic HTML element.
+    file_viewer.get_by_role("button", name="Rich text editor").click()
     editor = file_viewer.locator("[contenteditable='true']")
     expect(editor).to_be_visible(timeout=10_000)
     expect(editor.locator("h1")).to_contain_text("Rich Design Document")
@@ -142,13 +143,16 @@ def test_markdown_renders_rich_constructs_and_source_toggle(
     expect(editor.locator("h2").filter(has_text="Goals")).not_to_contain_text("##")
 
     # Source toggle: raw markdown becomes visible, no contenteditable editor.
-    file_viewer.get_by_role("button", name="Source view").click()
+    file_viewer.get_by_role("button", name="View source").click()
     expect(file_viewer.locator("[contenteditable='true']")).to_have_count(0)
     expect(file_viewer.get_by_text("## Goals", exact=False)).to_be_visible(timeout=10_000)
     expect(file_viewer.get_by_text("```python", exact=False)).to_be_visible()
     expect(file_viewer.get_by_text("| Option | Latency |", exact=False)).to_be_visible()
 
-    # Toggle back to the rich editor.
+    # Cycle back to the rich editor. The single toolbar toggle cycles
+    # preview -> editor -> source -> preview, so from source the editor is one
+    # hop past the read-only preview.
+    file_viewer.get_by_role("button", name="View preview").click()
     file_viewer.get_by_role("button", name="Rich text editor").click()
     editor = file_viewer.locator("[contenteditable='true']")
     expect(editor).to_be_visible(timeout=10_000)

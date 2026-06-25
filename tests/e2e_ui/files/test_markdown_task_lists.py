@@ -69,6 +69,9 @@ def test_task_lists_render_as_checkboxes(
 
     file_viewer = page.locator('[data-testid="file-viewer"]:visible')
     expect(file_viewer).to_be_visible()
+    # Markdown now opens in the read-only preview; switch into the rich-text
+    # editor (this test pins editor-side TaskList node rendering).
+    file_viewer.get_by_role("button", name="Rich text editor").click()
     editor = file_viewer.locator("[contenteditable='true']")
     expect(editor).to_be_visible(timeout=10_000)
 
@@ -97,6 +100,6 @@ def test_task_lists_render_as_checkboxes(
     expect(plain.locator('input[type="checkbox"]')).to_have_count(0)
 
     # Source toggle: the raw markers are visible verbatim in the source view.
-    file_viewer.get_by_role("button", name="Source view").click()
+    file_viewer.get_by_role("button", name="View source").click()
     expect(file_viewer.locator("[contenteditable='true']")).to_have_count(0)
     expect(file_viewer.get_by_text("- [x] Ship the PR", exact=False)).to_be_visible(timeout=10_000)

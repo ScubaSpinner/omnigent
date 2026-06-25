@@ -145,9 +145,11 @@ def test_markdown_rich_text_editor_add_comment(
         page.get_by_role("button", name=f"Close {_MARKDOWN_FILE_PATH}", exact=True).first
     ).to_be_visible()
 
-    # Markdown files default to rich-text editor mode. The editor renders the
-    # heading and paragraph into styled HTML via TipTap; the raw markdown
-    # syntax characters (# , **) are NOT visible in the editor surface.
+    # Markdown opens in the read-only preview; switch into the rich-text editor
+    # (this test pins the editor's comment UX). The editor renders the heading
+    # and paragraph into styled HTML via TipTap; the raw markdown syntax
+    # characters (# , **) are NOT visible in the editor surface.
+    file_viewer.get_by_role("button", name="Rich text editor").click()
     editor_content = file_viewer.locator("[contenteditable='true']")
     expect(editor_content).to_be_visible(timeout=10_000)
 
@@ -271,6 +273,8 @@ def test_heading_text_anchor_content_excludes_prefix(
     file_viewer = page.locator('[data-testid="file-viewer"]:visible')
     expect(file_viewer).to_be_visible()
 
+    # Markdown opens in the read-only preview; switch into the rich-text editor.
+    file_viewer.get_by_role("button", name="Rich text editor").click()
     editor_content = file_viewer.locator("[contenteditable='true']")
     expect(editor_content).to_be_visible(timeout=10_000)
 

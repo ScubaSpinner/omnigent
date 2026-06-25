@@ -113,6 +113,9 @@ def test_markdown_edit_autosaves(page: Page, seeded_markdown: tuple[str, str]) -
 
     file_viewer = page.locator('[data-testid="file-viewer"]:visible')
     expect(file_viewer).to_be_visible()
+    # Markdown now opens in the read-only preview; switch into the rich-text
+    # editor to exercise its auto-save path.
+    file_viewer.get_by_role("button", name="Rich text editor").click()
     editor = file_viewer.locator("[contenteditable='true']")
     expect(editor).to_be_visible(timeout=10_000)
     expect(editor).to_contain_text("A paragraph that will be edited")
